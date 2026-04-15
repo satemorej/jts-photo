@@ -4,6 +4,7 @@ dist/
 *.local
 .DS_Store
 backend/uploads/
-# Les .env.dev/.env.prod contiennent les chemins NAS — à garder en repo
-# mais on ignore le .env actif généré par le deploy
+# Fichiers d'environnement — contiennent des secrets (clés API, chemins NAS)
 backend/.env
+backend/.env.dev
+backend/.env.prod
