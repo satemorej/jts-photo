@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.local
+.DS_Store
+backend/uploads/
+# Les .env.dev/.env.prod contiennent les chemins NAS — à garder en repo
+# mais on ignore le .env actif généré par le deploy
+backend/.env

@@ -1,0 +1,27 @@
+{
+  "name": "jts-photo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "deploy:dev": "bash deploy.sh dev",
+    "deploy:prod": "bash deploy.sh prod"
+  },
+  "dependencies": {
+    "jspdf": "^2.5.1",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.0.0",
+    "vite-plugin-pwa": "^0.17.4",
+    "vue-tsc": "^2.2.12"
+  }
+}
