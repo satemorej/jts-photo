@@ -27,6 +27,7 @@
               <span class="count-sent">✓ {{ session.photos.filter(p => p.uploaded).length }}</span>
             </p>
           </div>
+          <span class="session-chevron">›</span>
         </div>
       </div>
     </main>
@@ -35,13 +36,14 @@
     <footer class="start-footer">
       <div class="field new-field">
         <input
-    
-          v-model="chantierName"
+          :value="chantierName"
           type="text"
           placeholder="Nom du chantier…"
           autocomplete="off"
           autocorrect="off"
+          autocapitalize="characters"
           maxlength="100"
+          @input="chantierName = ($event.target as HTMLInputElement).value.toUpperCase()"
           @keydown.enter="create"
         />
       </div>
@@ -104,21 +106,28 @@ function formatDate(ts: number) {
   align-items: center;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  padding: 14px 12px 14px 16px;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
-  transition: opacity 0.15s;
+  transition: opacity 0.12s ease, transform 0.1s ease;
 }
-.session-card:active { opacity: 0.65; }
+.session-card:active {
+  opacity: 0.7;
+  transform: scale(0.985);
+}
 
-.session-main { flex: 1; }
+.session-main { flex: 1; min-width: 0; }
 
 .session-name {
   font-size: 16px;
   font-weight: 600;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .session-meta {
@@ -128,10 +137,19 @@ function formatDate(ts: number) {
   gap: 4px;
   font-size: 12px;
   color: var(--color-text-dim);
-  margin-top: 3px;
+  margin-top: 4px;
 }
-.count-sep { opacity: 0.4; }
-.count-sent { color: var(--color-success); }
+.count-sep { opacity: 0.35; }
+.count-sent { color: var(--color-success); font-weight: 600; }
+
+.session-chevron {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: var(--color-text-dim);
+  opacity: 0.4;
+  margin-left: 6px;
+  line-height: 1;
+}
 
 .loading-state,
 .empty-state {

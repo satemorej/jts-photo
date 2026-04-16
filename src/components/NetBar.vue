@@ -9,10 +9,15 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useUiStore } from '@/stores/uiStore'
+import { useQueueStore } from '@/stores/queueStore'
 
-const uiStore = useUiStore()
+const uiStore    = useUiStore()
+const queueStore = useQueueStore()
 
-onMounted(() => uiStore.initNetworkListeners())
+onMounted(() => {
+  uiStore.initNetworkListeners()
+  queueStore.setupAutoRetry()
+})
 </script>
 
 <style scoped>

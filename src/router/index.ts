@@ -3,6 +3,7 @@ import ScreenResume from '@/screens/ScreenResume.vue'
 import ScreenGalerie from '@/screens/ScreenGalerie.vue'
 import ScreenUpload from '@/screens/ScreenUpload.vue'
 import ScreenQueue from '@/screens/ScreenQueue.vue'
+import ScreenReseau from '@/screens/ScreenReseau.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -33,6 +34,11 @@ const router = createRouter({
       path: '/queue',
       name: 'queue',
       component: ScreenQueue
+    },
+    {
+      path: '/reseau',
+      name: 'reseau',
+      component: ScreenReseau
     },
     {
       path: '/:pathMatch(.*)*',

@@ -35,7 +35,16 @@ export interface QueueItem {
   baseName?: string  // nom de base partagé photo/thumb/note
   retryCount: number
   lastAttempt: number
+  lastError?: string
   createdAt: number
+}
+
+export interface HistoryEntry {
+  id: string
+  type: 'photo' | 'note' | 'report'
+  chantierName: string
+  filename: string
+  transferredAt: number
 }
 
 const DB_NAME = 'jts-photo-db'

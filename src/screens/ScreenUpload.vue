@@ -110,6 +110,7 @@ import { useQueueStore } from '@/stores/queueStore'
 import { useUiStore } from '@/stores/uiStore'
 import { uploadPhoto, uploadThumbnail, uploadNote, uploadReport, checkHealth } from '@/services/api'
 import { generateSessionReportBlob } from '@/services/pdfReport'
+import { recordTransfer } from '@/stores/queueStore'
 import type { Photo } from '@/services/db'
 
 const route = useRoute()
@@ -173,13 +174,16 @@ async function startUpload() {
     if (res.success && res.baseName) {
       await sessionStore.markPhotoUploaded(photo.id)
       uploaded.value.push(photo)
+      recordTransfer('photo', session.value.chantierName, res.baseName)
       // Miniature — même baseName que la photo
       const thumbBlob = await fetch(photo.thumbnail).then(r => r.blob())
       await uploadThumbnail(thumbBlob, res.baseName, { ...meta, photoId: photo.id })
       // Notes
       for (const note of photo.notes) {
         const nres = await uploadNote(note.text, res.baseName, { ...meta, photoId: photo.id })
-        if (!nres.success) {
+        if (nres.success) {
+          recordTransfer('note', session.value.chantierName, `${res.baseName}_note`)
+        } else {
           await queueStore.addNoteToQueue(session.value.id, session.value.chantierName, photo.id, note.text, res.baseName)
           failedCount.value++
         }
@@ -200,6 +204,9 @@ async function startUpload() {
       const pdfBlob = await generateSessionReportBlob(session.value)
       const rres = await uploadReport(pdfBlob, meta)
       reportUploaded.value = rres.success
+      if (rres.success) {
+        recordTransfer('report', session.value.chantierName, `rapport_${session.value.chantierName}`)
+      }
     } catch {
       reportUploaded.value = false
     }

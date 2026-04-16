@@ -103,3 +103,13 @@ export async function checkHealth(): Promise<boolean> {
     return false
   }
 }
+
+export async function checkHealthLatency(): Promise<{ ok: boolean; latencyMs: number | null }> {
+  const start = Date.now()
+  try {
+    const res = await fetch(`${API_BASE}/health`, { method: 'GET', signal: AbortSignal.timeout(5000) })
+    return { ok: res.ok, latencyMs: Date.now() - start }
+  } catch {
+    return { ok: false, latencyMs: null }
+  }
+}

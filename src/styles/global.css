@@ -7,33 +7,43 @@
 }
 
 :root {
-  --color-bg: #000000;
-  --color-surface: #111111;
-  --color-surface-2: #1c1c1c;
-  --color-border: #2a2a2a;
-  --color-accent: #4f8ef7;
-  --color-accent-dim: #2a4a8a;
-  --color-danger: #e05252;
-  --color-success: #4caf50;
-  --color-warning: #f5a623;
-  --color-text: #e8e8f0;
-  --color-text-dim: #8888aa;
+  /* Fond pure black demandé par l'utilisateur */
+  --color-bg:        #000000;
+  --color-surface:   #111113;
+  --color-surface-2: #1c1c1e;
+  --color-border:    #2c2c2e;
 
-  --safe-top: env(safe-area-inset-top, 0px);
+  /* Palette iOS system colors — cohérence iPhone */
+  --color-accent:     #0a84ff;
+  --color-accent-dim: #0a3d8f;
+  --color-danger:     #ff453a;
+  --color-success:    #30d158;
+  --color-warning:    #ffd60a;
+
+  /* Texte */
+  --color-text:     #f5f5f7;
+  --color-text-dim: #8e8e93;
+
+  /* Safe areas */
+  --safe-top:    env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
 
   --header-height: 56px;
   --footer-height: 72px;
   --tap-min: 44px;
+  --radius-sm:  10px;
+  --radius-md:  14px;
+  --radius-lg:  18px;
 
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   font-size: 16px;
   line-height: 1.5;
   color: var(--color-text);
   background-color: var(--color-bg);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html, body {
@@ -55,7 +65,7 @@ html, body {
   overflow: hidden;
 }
 
-/* ===== Layout helpers ===== */
+/* ===== Layout ===== */
 .screen {
   display: flex;
   flex-direction: column;
@@ -112,27 +122,28 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   min-height: var(--tap-min);
-  padding: 0 20px;
-  border-radius: 12px;
+  padding: 0 18px;
+  border-radius: var(--radius-md);
   border: none;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.1px;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
+  transition: opacity 0.12s ease, transform 0.1s ease;
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
 }
 
 .btn:active {
-  opacity: 0.75;
-  transform: scale(0.97);
+  opacity: 0.72;
+  transform: scale(0.96);
 }
 
 .btn-primary {
-  background: var(--color-accent);
+  background: linear-gradient(160deg, #1f8fff 0%, #0074e8 100%);
   color: #fff;
 }
 
@@ -143,7 +154,7 @@ html, body {
 }
 
 .btn-danger {
-  background: var(--color-danger);
+  background: linear-gradient(160deg, #ff5f55 0%, #e83030 100%);
   color: #fff;
 }
 
@@ -155,6 +166,7 @@ html, body {
   background: var(--color-surface-2);
   color: var(--color-text);
   font-size: 20px;
+  border: 1px solid var(--color-border);
 }
 
 .btn-full {
@@ -162,7 +174,7 @@ html, body {
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   pointer-events: none;
 }
 
@@ -170,7 +182,7 @@ html, body {
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 16px;
 }
 
@@ -181,12 +193,12 @@ html, body {
 
 .field label {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-text-dim);
   margin-bottom: 6px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .field input,
@@ -195,7 +207,7 @@ html, body {
   min-height: var(--tap-min);
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
   color: var(--color-text);
   font-size: 16px;
@@ -203,12 +215,13 @@ html, body {
   appearance: none;
   -webkit-appearance: none;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .field input:focus,
 .field textarea:focus {
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
 }
 
 .field textarea {
@@ -231,21 +244,15 @@ html, body {
   color: #fff;
 }
 
-.badge-danger {
-  background: var(--color-danger);
-}
+.badge-danger  { background: var(--color-danger); }
+.badge-warning { background: var(--color-warning); color: #000; }
 
-.badge-warning {
-  background: var(--color-warning);
-  color: #000;
-}
-
-/* ===== Screen nav (contextual bar inside a screen) ===== */
+/* ===== Screen nav ===== */
 .screen-nav {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  height: 44px;
+  height: 48px;
   padding: 0 8px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
@@ -253,23 +260,17 @@ html, body {
 }
 
 .screen-nav h2 {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 4px;
+  padding: 0 6px;
+  letter-spacing: -0.2px;
 }
 
 /* ===== Scrollbar (desktop) ===== */
-::-webkit-scrollbar {
-  width: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 4px;
-}
+::-webkit-scrollbar       { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }

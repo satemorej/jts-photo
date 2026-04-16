@@ -1,7 +1,6 @@
 <template>
   <div class="screen">
     <nav class="screen-nav">
-      <button class="btn btn-icon" @click="router.push('/')">‹</button>
       <h2>{{ session?.chantierName ?? '…' }}</h2>
       <button class="btn btn-danger btn-clore" :disabled="closing" @click="confirmClore">
         {{ closing ? '…' : 'Clore' }}
@@ -60,37 +59,60 @@
 
     <!-- Footer -->
     <footer class="screen-footer footer-galerie">
-      <!-- Rangée principale : capture + sélection -->
+      <!-- Rangée 1 : sélection + capture -->
       <div class="footer-row">
-        <button class="btn btn-secondary" style="flex:1" @click="toggleSelectAll" :disabled="!session?.photos.length">
-          {{ allSelected ? 'Aucun' : 'Tout' }}
+        <!-- Sélectionner tout / aucun -->
+        <button class="btn btn-secondary icon-btn" @click="toggleSelectAll" :disabled="!session?.photos.length">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <polyline v-if="allSelected" points="9 12 11 14 15 10"/>
+          </svg>
         </button>
-        <button class="btn btn-primary capture-btn" style="flex:2" @click="triggerPhoto" :disabled="!session">
-          <span class="capture-icon">📷</span>
-          <span class="capture-label">Photo</span>
+        <!-- Capture photo (bouton principal) -->
+        <button class="btn btn-primary icon-btn icon-btn-main" @click="triggerPhoto" :disabled="!session">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
         </button>
-        <button class="btn btn-secondary capture-btn" style="flex:1" @click="triggerVideo" :disabled="!session">
-          <span class="capture-icon">🎥</span>
-          <span class="capture-label">Vidéo</span>
+        <!-- Capture vidéo -->
+        <button class="btn btn-secondary icon-btn" @click="triggerVideo" :disabled="!session">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"/>
+            <rect x="1" y="5" width="15" height="14" rx="2"/>
+          </svg>
         </button>
       </div>
-      <!-- Rangée secondaire : actions de sélection -->
+      <!-- Rangée 2 : transfert + suppression -->
       <div class="footer-row">
         <button
-          class="btn btn-primary"
+          class="btn btn-primary icon-btn icon-btn-action"
           style="flex:1"
           :disabled="!selectedPending.length || transferring"
           @click="transferSelected"
         >
-          {{ transferring ? `${transferDone}/${transferTotal}…` : `Transférer (${selectedPending.length})` }}
+          <span class="icon-badge-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"/>
+              <polyline points="5 12 12 5 19 12"/>
+            </svg>
+            <span v-if="transferring" class="icon-badge badge-spin">…</span>
+            <span v-else-if="selectedPending.length" class="icon-badge">{{ selectedPending.length }}</span>
+          </span>
         </button>
         <button
-          class="btn btn-danger"
+          class="btn btn-danger icon-btn icon-btn-action"
           style="flex:1"
           :disabled="!selectedIds.size || transferring"
           @click="showDeleteConfirm = true"
         >
-          Suppr. ({{ selectedIds.size }})
+          <span class="icon-badge-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            <span v-if="selectedIds.size" class="icon-badge">{{ selectedIds.size }}</span>
+          </span>
         </button>
       </div>
     </footer>
@@ -193,6 +215,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/sessionStore'
 import { useUiStore } from '@/stores/uiStore'
 import { uploadPhoto, uploadThumbnail, uploadNote } from '@/services/api'
+import { recordTransfer } from '@/stores/queueStore'
 
 const props = defineProps<{ id: string }>()
 const route  = useRoute()
@@ -367,10 +390,12 @@ async function transferSelected() {
       const res  = await uploadPhoto(blob, { ...meta, photoId: photo.id })
       if (res.success && res.baseName) {
         await sessionStore.markPhotoUploaded(photo.id)
+        recordTransfer('photo', session.value!.chantierName, res.baseName)
         const thumbBlob = await fetch(photo.thumbnail).then(r => r.blob())
         await uploadThumbnail(thumbBlob, res.baseName, { ...meta, photoId: photo.id })
         for (const note of photo.notes) {
-          await uploadNote(note.text, res.baseName, { ...meta, photoId: photo.id })
+          const nres = await uploadNote(note.text, res.baseName, { ...meta, photoId: photo.id })
+          if (nres.success) recordTransfer('note', session.value!.chantierName, `${res.baseName}_note`)
         }
       }
     } catch { /* photo reste non transférée */ }
@@ -557,14 +582,56 @@ async function clore() {
   flex-shrink: 0;
 }
 
-/* Boutons capture */
-.capture-btn {
-  flex-direction: column;
-  gap: 2px;
-  height: 56px;
+/* Boutons icônes footer */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 52px;
+  padding: 0;
 }
-.capture-icon  { font-size: 20px; line-height: 1; }
-.capture-label { font-size: 11px; font-weight: 600; }
+.icon-btn svg {
+  width: 24px;
+  height: 24px;
+}
+.icon-btn-main {
+  flex: 2;
+}
+.icon-btn-main svg {
+  width: 28px;
+  height: 28px;
+}
+.icon-btn-action {
+  position: relative;
+}
+
+/* Badge sur icône */
+.icon-badge-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-badge-wrap svg {
+  width: 24px;
+  height: 24px;
+}
+.icon-badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #fff;
+  color: #000;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
 
 /* Overlay review */
 .review-backdrop {
