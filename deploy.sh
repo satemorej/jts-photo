@@ -92,8 +92,12 @@ if [ -f "${PID_FILE}" ]; then
   rm -f "${PID_FILE}"
 fi
 
-# Also kill anything still on the port (safety)
-fuser -k ${PORT}/tcp 2>/dev/null || true
+# Sécurité : tuer tout process node encore sur ce port (fuser absent sur Synology DSM)
+LEFTOVER=\$(ps aux | grep '[s]erver.js' | awk 'NR==1{print \$2}' | head -1)
+if [ -n "\${LEFTOVER}" ]; then
+  kill "\${LEFTOVER}" 2>/dev/null || true
+  sleep 1
+fi
 
 # Start
 nohup node server.js >> "${LOG_FILE}" 2>&1 &

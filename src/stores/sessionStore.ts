@@ -92,6 +92,17 @@ export const useSessionStore = defineStore('session', () => {
     await saveSession(currentSession.value)
   }
 
+  async function updateNoteInPhoto(photoId: string, noteId: string, text: string): Promise<void> {
+    if (!currentSession.value) return
+    const photo = currentSession.value.photos.find(p => p.id === photoId)
+    if (!photo) return
+    const note = photo.notes.find(n => n.id === noteId)
+    if (note) {
+      note.text = text.trim()
+      await saveSession(currentSession.value)
+    }
+  }
+
   async function deleteNoteFromPhoto(photoId: string, noteId: string): Promise<void> {
     if (!currentSession.value) return
     const photo = currentSession.value.photos.find(p => p.id === photoId)
@@ -140,6 +151,7 @@ export const useSessionStore = defineStore('session', () => {
     loadSession,
     addPhoto,
     addNoteToPhoto,
+    updateNoteInPhoto,
     deleteNoteFromPhoto,
     deletePhoto,
     markPhotoUploaded,

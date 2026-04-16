@@ -66,6 +66,12 @@ export async function uploadThumbnail(
   return postForm('/upload/thumbnail', fd)
 }
 
+/** Formate un tableau de textes de notes en un seul fichier lisible. */
+export function formatNotes(texts: string[]): string {
+  if (texts.length === 1) return texts[0]
+  return texts.map((t, i) => `[Note ${i + 1}]\n${t}`).join('\n\n')
+}
+
 export async function uploadNote(
   text: string,
   baseName: string,
@@ -73,7 +79,7 @@ export async function uploadNote(
 ): Promise<ApiResponse> {
   const blob = new Blob([text], { type: 'text/plain' })
   const fd = new FormData()
-  fd.append('file', blob, `${baseName}_note.txt`)
+  fd.append('file', blob, `${baseName}_notes.txt`)
   fd.append('sessionId', meta.sessionId)
   fd.append('chantierName', meta.chantierName)
   fd.append('baseName', baseName)

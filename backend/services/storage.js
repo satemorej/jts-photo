@@ -44,9 +44,9 @@ export async function storeThumbnail(fileBuffer, baseName, { chantierName }) {
   return filename
 }
 
-// baseName fourni par storePhoto → NomPrincipal_note.txt
+// baseName fourni par storePhoto → NomPrincipal_notes.txt
 export async function storeNote(fileBuffer, baseName, { chantierName }) {
-  const filename = `${baseName}_note.txt`
+  const filename = `${baseName}_notes.txt`
   const naspath  = `${rapportDir(chantierName)}/${filename}`
 
   await writeFile(naspath, fileBuffer.toString('utf8'))

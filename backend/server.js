@@ -30,6 +30,12 @@ if (!process.env.STATIC_DIR) {
   app.use(cors({ origin: ALLOWED_ORIGIN, methods: ['GET', 'POST'] }))
 }
 
+// Permissions nécessaires pour les APIs navigateur (micro pour dictée, caméra pour capture)
+app.use((_req, res, next) => {
+  res.set('Permissions-Policy', 'microphone=(self), camera=(self)')
+  next()
+})
+
 app.use(express.json({ limit: '1mb' }))
 
 // Health check
