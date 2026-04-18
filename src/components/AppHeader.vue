@@ -72,12 +72,12 @@ const statusText = computed(() => {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  background: linear-gradient(145deg, #1f8fff, #005ecb);
+  background: linear-gradient(145deg, #ffb833, #e67e00);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(255, 159, 10, 0.35);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-user-select: none;

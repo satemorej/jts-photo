@@ -14,8 +14,8 @@
   --color-border:    #2c2c2e;
 
   /* Palette iOS system colors — cohérence iPhone */
-  --color-accent:     #0a84ff;
-  --color-accent-dim: #0a3d8f;
+  --color-accent:     #ff9f0a;
+  --color-accent-dim: #7a4c00;
   --color-danger:     #ff453a;
   --color-success:    #30d158;
   --color-warning:    #ffd60a;
@@ -144,7 +144,7 @@ html, body {
 }
 
 .btn-primary {
-  background: linear-gradient(160deg, #1f8fff 0%, #0074e8 100%);
+  background: linear-gradient(160deg, #ffb833 0%, #e67e00 100%);
   color: #fff;
 }
 
@@ -222,7 +222,7 @@ html, body {
 .field input:focus,
 .field textarea:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.18);
 }
 
 .field textarea {
