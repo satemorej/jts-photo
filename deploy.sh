@@ -17,10 +17,12 @@ ENV="${1:-dev}"
 case "$ENV" in
   dev)
     PORT=5656
+    PM2_NAME="jts-photo-dev"
     DEPLOY_DIR="${NAS_BASE}/dev/jts-photo"
     ;;
   prod)
     PORT=5657
+    PM2_NAME="jts-photo"
     DEPLOY_DIR="${NAS_BASE}/production/jts-photo"
     ;;
   *)
@@ -31,9 +33,6 @@ esac
 
 NAS_TARGET="${NAS_USER}@${NAS_HOST}"
 SSH="ssh -p ${NAS_SSH_PORT}"
-RSYNC="rsync -az --info=progress2 -e 'ssh -p ${NAS_SSH_PORT}'"
-LOG_FILE="${DEPLOY_DIR}/app.log"
-PID_FILE="${DEPLOY_DIR}/app.pid"
 
 echo ""
 echo "  JTS Photo — deploy [${ENV}]"
@@ -67,49 +66,23 @@ rsync -az --delete --info=progress2 \
   "${NAS_TARGET}:${DEPLOY_DIR}/backend/"
 echo "  ✓ Backend synced"
 
-# ── 4. Remote: install deps + (re)start ──────────────────────
+# ── 4. Remote: install deps + (re)start via PM2 ──────────────
 echo "▶ Remote setup & restart…"
-$SSH -T "${NAS_TARGET}" bash <<REMOTE
+$SSH -p "${NAS_SSH_PORT}" -T "${NAS_TARGET}" bash -l <<REMOTE
 set -euo pipefail
-export PATH="/usr/local/bin:\$PATH"
 
 cd "${DEPLOY_DIR}/backend"
 
-# Install / update dependencies
 npm install --omit=dev --silent
 
-# Activate the right .env
 cp ".env.${ENV}" .env
 
-# Kill previous instance if running
-if [ -f "${PID_FILE}" ]; then
-  OLD_PID=\$(cat "${PID_FILE}")
-  if kill -0 "\${OLD_PID}" 2>/dev/null; then
-    kill "\${OLD_PID}"
-    sleep 1
-    echo "  stopped PID \${OLD_PID}"
-  fi
-  rm -f "${PID_FILE}"
-fi
+pm2 restart ${PM2_NAME} 2>/dev/null \
+  || pm2 start server.js --name ${PM2_NAME}
 
-# Sécurité : tuer tout process node encore sur ce port (fuser absent sur Synology DSM)
-LEFTOVER=\$(ps aux | grep '[s]erver.js' | awk 'NR==1{print \$2}' | head -1)
-if [ -n "\${LEFTOVER}" ]; then
-  kill "\${LEFTOVER}" 2>/dev/null || true
-  sleep 1
-fi
+pm2 save --force
 
-# Start
-nohup node server.js >> "${LOG_FILE}" 2>&1 &
-echo \$! > "${PID_FILE}"
-
-sleep 1
-if kill -0 \$(cat "${PID_FILE}") 2>/dev/null; then
-  echo "  started PID \$(cat ${PID_FILE}) on port ${PORT}"
-else
-  echo "  ERROR: process failed to start — check ${LOG_FILE}" >&2
-  exit 1
-fi
+echo "  ✓ PM2 (${PM2_NAME}) démarré"
 REMOTE
 
 # ── 5. Health check ───────────────────────────────────────────

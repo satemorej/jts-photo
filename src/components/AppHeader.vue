@@ -85,10 +85,7 @@ const statusText = computed(() => {
   transition: opacity 0.12s ease, transform 0.1s ease;
 }
 
-:global([data-env="prod"]) .app-logo {
-  background: linear-gradient(145deg, #ffb833, #e67e00);
-  box-shadow: 0 2px 8px rgba(255, 159, 10, 0.35);
-}
+
 .app-logo:active {
   opacity: 0.7;
   transform: scale(0.93);
@@ -187,4 +184,11 @@ const statusText = computed(() => {
 }
 .header-home-btn svg { width: 22px; height: 22px; }
 .header-home-btn:active { opacity: 0.45; transform: scale(0.9); }
+</style>
+
+<style>
+[data-env="prod"] .app-logo {
+  background: linear-gradient(145deg, #ffb833, #e67e00) !important;
+  box-shadow: 0 2px 8px rgba(255, 159, 10, 0.35) !important;
+}
 </style>

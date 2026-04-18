@@ -1112,10 +1112,10 @@ async function clore() {
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(28, 28, 32, 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(255,255,255,0.13);
 }
 
 .fbar-btn {

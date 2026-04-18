@@ -152,11 +152,6 @@ html, body {
   background: linear-gradient(160deg, #ffb833 0%, #e67e00 100%);
 }
 
-[data-env="prod"] {
-  --color-accent:     #ff9f0a;
-  --color-accent-dim: #7a4c00;
-}
-
 .btn-secondary {
   background: var(--color-surface-2);
   color: var(--color-text);
