@@ -2,17 +2,22 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 
-// Incrément du compteur de build
-const buildFile = new URL('./build.json', import.meta.url)
-const buildJson = JSON.parse(readFileSync(buildFile, 'utf-8'))
-const buildN: number = buildJson.n
-writeFileSync(buildFile, JSON.stringify({ n: buildN + 1 }) + '\n')
+function git(cmd: string): string {
+  try { return execSync(cmd, { encoding: 'utf-8' }).trim() }
+  catch { return '' }
+}
+
+const isProd     = process.env.VITE_APP_ENV === 'prod'
+const buildN     = Number(git('git rev-list --count HEAD')) || 0
+const appVersion = isProd
+  ? (git('git describe --tags --exact-match') || git('git describe --tags --abbrev=4') || git('git rev-parse --short HEAD'))
+  : `dev-${buildN}`
 
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify('0.1.0'),
+    __APP_VERSION__: JSON.stringify(appVersion),
     __BUILD_N__: buildN,
     __APP_ENV__: JSON.stringify(process.env.VITE_APP_ENV ?? 'dev')
   },
