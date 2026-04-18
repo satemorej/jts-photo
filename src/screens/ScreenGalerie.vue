@@ -1,10 +1,16 @@
 <template>
   <div class="screen">
-    <nav class="screen-nav">
+    <nav class="screen-nav nav-galerie">
       <h2>
         {{ session?.chantierName ?? '…' }}
         <span v-if="session" class="nav-counter">({{ uploadedCount }}T / {{ session.photos.length }}P<template v-if="queueStore.pendingCount"> / {{ queueStore.pendingCount }}F</template>)</span>
       </h2>
+      <button class="nav-home-btn" @click="router.push('/')" title="Accueil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </button>
     </nav>
 
     <main class="screen-body">
@@ -22,10 +28,18 @@
             v-for="photo in session.photos"
             :key="photo.id"
             class="thumb-wrap"
-            :class="{ 'is-selected': selectedIds.has(photo.id), 'is-uploaded': photo.uploaded }"
+            :class="{ 'is-selected': selectedIds.has(photo.id), 'is-uploaded': photo.uploaded, 'is-queued': queuedPhotoIds.has(photo.id), 'is-failed': photo.uploadFailed && !photo.uploaded && !queuedPhotoIds.has(photo.id) }"
             @click="openViewer(photo.id)"
           >
-            <img :src="photo.thumbnail" class="thumb-img" :alt="'Photo'" />
+            <img v-if="photo.mediaType !== 'video'" :src="photo.thumbnail" class="thumb-img" :alt="'Photo'" />
+            <div v-else class="thumb-video-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+              </svg>
+            </div>
+
+            <!-- Badge vidéo -->
+            <div v-if="photo.mediaType === 'video'" class="video-badge">🎥</div>
 
             <!-- Badge note -->
             <div v-if="photo.notes.length > 0" class="note-badge">
@@ -35,8 +49,11 @@
             <!-- Badge transférée -->
             <div v-if="photo.uploaded" class="uploaded-badge">✓</div>
 
-            <!-- Checkbox sélection (photos non transférées uniquement) -->
-            <div v-if="!photo.uploaded" class="sel-check" :class="{ checked: selectedIds.has(photo.id) }" @click.stop="toggleSelect(photo.id)">
+            <!-- Badge file d'attente -->
+            <div v-else-if="queuedPhotoIds.has(photo.id)" class="queued-badge">⏳</div>
+
+            <!-- Checkbox sélection (photos non transférées et non en file uniquement) -->
+            <div v-if="!photo.uploaded && !queuedPhotoIds.has(photo.id)" class="sel-check" :class="{ checked: selectedIds.has(photo.id), failed: photo.uploadFailed }" @click.stop="toggleSelect(photo.id)">
               <span v-if="selectedIds.has(photo.id)">✓</span>
             </div>
           </div>
@@ -202,7 +219,7 @@
 
     <!-- Viewer photo : plein format + notes + ajout/édition -->
     <Transition name="sheet">
-      <div v-if="showViewer" class="review-backdrop" @click.self="closeViewer">
+      <div v-if="showViewer" class="viewer-backdrop">
         <div class="viewer-sheet">
           <!-- En-tête -->
           <div class="viewer-header">
@@ -225,7 +242,7 @@
             <div class="viewer-photo-wrap" @click="showFullscreen = true">
               <img v-if="viewerPhoto" :src="viewerPhoto.dataUrl" class="viewer-img" alt="Photo" />
             </div>
-            <div v-if="!viewerPhoto?.uploaded" class="viewer-photo-actions">
+            <div v-if="!viewerPhoto?.uploaded && !queuedPhotoIds.has(viewerPhoto?.id ?? '')" class="viewer-photo-actions">
               <button
                 class="btn btn-primary viewer-action-btn"
                 :disabled="!viewerNewNote.trim()"
@@ -247,8 +264,8 @@
             </div>
           </div>
 
-          <!-- Textarea pleine largeur + statut dictée (photos non transférées uniquement) -->
-          <div v-if="!viewerPhoto?.uploaded" class="viewer-add-note">
+          <!-- Textarea pleine largeur + statut dictée (photos non transférées et non en file uniquement) -->
+          <div v-if="!viewerPhoto?.uploaded && !queuedPhotoIds.has(viewerPhoto?.id ?? '')" class="viewer-add-note">
             <textarea
               v-model="viewerNewNote"
               class="note-textarea"
@@ -361,7 +378,7 @@ import { ref, computed, onMounted, nextTick, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/sessionStore'
 import { useUiStore } from '@/stores/uiStore'
-import { uploadPhoto, uploadThumbnail, uploadNote, uploadReport, formatNotes } from '@/services/api'
+import { uploadPhoto, uploadVideo, uploadThumbnail, uploadNote, uploadReport, formatNotes } from '@/services/api'
 import { useQueueStore, recordTransfer } from '@/stores/queueStore'
 import { generateSessionReportBlob } from '@/services/pdfReport'
 import type { PhotoNote } from '@/services/db'
@@ -424,6 +441,15 @@ const viewerPhoto = computed(() =>
   viewerPhotoId.value ? session.value?.photos.find(p => p.id === viewerPhotoId.value) ?? null : null
 )
 
+// IDs des photos dont l'upload est en attente dans la queue
+const queuedPhotoIds = computed(() =>
+  new Set(
+    queueStore.items
+      .filter(i => i.type === 'photo' && i.photoId)
+      .map(i => i.photoId as string)
+  )
+)
+
 // ── Swipe notes ───────────────────────────────────────────────
 const swipedNoteId = ref<string | null>(null)
 let swipeStartX = 0
@@ -477,7 +503,7 @@ async function onFileSelected(type: 'photo' | 'video', e: Event) {
 
   try {
     const dataUrl = await fileToDataUrl(file)
-    const photo   = await sessionStore.addPhoto(dataUrl)
+    const photo   = await sessionStore.addPhoto(dataUrl, type)
     reviewPhotoId.value  = photo.id
     reviewPhotoUrl.value = type === 'photo' ? photo.thumbnail : undefined
     reviewIsVideo.value  = type === 'video'
@@ -492,15 +518,19 @@ async function onFileSelected(type: 'photo' | 'video', e: Event) {
 
 // ── Review ───────────────────────────────────────────────────
 async function saveNote() {
-  if (reviewPhotoId.value && noteText.value.trim()) {
-    await sessionStore.addNoteToPhoto(reviewPhotoId.value, noteText.value)
+  const photoId = reviewPhotoId.value
+  const text    = noteText.value.trim()
+  closeReview()
+  triggerPhoto()   // synchrone dans le geste utilisateur (iOS)
+  if (photoId && text) {
+    await sessionStore.addNoteToPhoto(photoId, text)
     uiStore.showToast('Note enregistrée', 'success')
   }
-  closeReview()
 }
 
 function skipNote() {
   closeReview()
+  triggerPhoto()   // synchrone dans le geste utilisateur (iOS)
 }
 
 function closeReview() {
@@ -649,6 +679,17 @@ function toggleSelectAll() {
   }
 }
 
+// ── Labels médias (basé sur l'ordre dans la session) ─────────
+function buildMediaLabels(): Map<string, string> {
+  const labels = new Map<string, string>()
+  let photoIdx = 0, videoIdx = 0
+  for (const p of session.value?.photos ?? []) {
+    if (p.mediaType === 'video') labels.set(p.id, `video_${++videoIdx}`)
+    else                         labels.set(p.id, `photo_${++photoIdx}`)
+  }
+  return labels
+}
+
 // ── Transfert ────────────────────────────────────────────────
 async function transferSelected() {
   if (!session.value || transferring.value) return
@@ -664,29 +705,51 @@ async function transferSelected() {
     chantierName: session.value.chantierName,
     timestamp:    Date.now()
   }
+  const labels = buildMediaLabels()
 
+  let failed = 0
   for (const photo of photos) {
+    const isVideo    = photo.mediaType === 'video'
+    const mediaLabel = labels.get(photo.id)
     try {
       const blob = await fetch(photo.dataUrl).then(r => r.blob())
-      const res  = await uploadPhoto(blob, { ...meta, photoId: photo.id })
+      const res  = isVideo
+        ? await uploadVideo(blob, { ...meta, photoId: photo.id, mediaLabel })
+        : await uploadPhoto(blob, { ...meta, photoId: photo.id, mediaLabel })
       if (res.success && res.baseName) {
         await sessionStore.markPhotoUploaded(photo.id)
-        recordTransfer('photo', session.value!.chantierName, res.baseName)
-        const thumbBlob = await fetch(photo.thumbnail).then(r => r.blob())
-        await uploadThumbnail(thumbBlob, res.baseName, { ...meta, photoId: photo.id })
+        recordTransfer(isVideo ? 'video' : 'photo', session.value!.chantierName, res.baseName)
+        if (!isVideo && photo.thumbnail) {
+          const thumbBlob = await fetch(photo.thumbnail).then(r => r.blob())
+          await uploadThumbnail(thumbBlob, res.baseName, { ...meta, photoId: photo.id })
+        }
         if (photo.notes.length > 0) {
           const text = formatNotes(photo.notes.map(n => n.text))
           const nres = await uploadNote(text, res.baseName, { ...meta, photoId: photo.id })
           if (nres.success) recordTransfer('note', session.value!.chantierName, `${res.baseName}_notes`)
+          else await queueStore.addNoteToQueue(session.value!.id, session.value!.chantierName, photo.id, text, res.baseName)
         }
+      } else {
+        await queueStore.addPhotoToQueue(session.value!.id, session.value!.chantierName, photo.id, photo.dataUrl, isVideo ? 'video' : 'photo', mediaLabel)
+        await sessionStore.markPhotoFailed(photo.id)
+        failed++
       }
-    } catch { /* photo reste non transférée */ }
+    } catch {
+      await queueStore.addPhotoToQueue(session.value!.id, session.value!.chantierName, photo.id, photo.dataUrl, isVideo ? 'video' : 'photo', mediaLabel)
+      await sessionStore.markPhotoFailed(photo.id)
+      failed++
+    }
     transferDone.value++
   }
 
   transferring.value = false
-  const done = session.value.photos.filter(p => selectedIds.value.has(p.id) && p.uploaded).length
-  uiStore.showToast(`${done} photo${done !== 1 ? 's' : ''} transférée${done !== 1 ? 's' : ''}`, 'success')
+  const done = photos.length - failed
+  if (done > 0 && failed > 0)
+    uiStore.showToast(`${done} transférée(s), ${failed} en file d'attente`, 'info')
+  else if (done > 0)
+    uiStore.showToast(`${done} photo${done !== 1 ? 's' : ''} transférée${done !== 1 ? 's' : ''}`, 'success')
+  else
+    uiStore.showToast(`Échec — ${failed} photo${failed !== 1 ? 's' : ''} en file d'attente`, 'error')
   selectedIds.value = new Set()
 }
 
@@ -714,17 +777,24 @@ async function clore() {
       chantierName: session.value.chantierName,
       timestamp:    Date.now()
     }
+    const labels = buildMediaLabels()
 
-    // Upload toutes les photos en attente
+    // Upload toutes les photos/vidéos en attente
     for (const photo of session.value.photos.filter(p => !p.uploaded)) {
+      const isVideo    = photo.mediaType === 'video'
+      const mediaLabel = labels.get(photo.id)
       try {
         const blob = await fetch(photo.dataUrl).then(r => r.blob())
-        const res  = await uploadPhoto(blob, { ...meta, photoId: photo.id })
+        const res  = isVideo
+          ? await uploadVideo(blob, { ...meta, photoId: photo.id, mediaLabel })
+          : await uploadPhoto(blob, { ...meta, photoId: photo.id, mediaLabel })
         if (res.success && res.baseName) {
           await sessionStore.markPhotoUploaded(photo.id)
-          recordTransfer('photo', session.value.chantierName, res.baseName)
-          const thumbBlob = await fetch(photo.thumbnail).then(r => r.blob())
-          await uploadThumbnail(thumbBlob, res.baseName, { ...meta, photoId: photo.id })
+          recordTransfer(isVideo ? 'video' : 'photo', session.value.chantierName, res.baseName)
+          if (!isVideo && photo.thumbnail) {
+            const thumbBlob = await fetch(photo.thumbnail).then(r => r.blob())
+            await uploadThumbnail(thumbBlob, res.baseName, { ...meta, photoId: photo.id })
+          }
           if (photo.notes.length > 0) {
             const text = formatNotes(photo.notes.map(n => n.text))
             const nres = await uploadNote(text, res.baseName, { ...meta, photoId: photo.id })
@@ -732,10 +802,12 @@ async function clore() {
             else await queueStore.addNoteToQueue(session.value.id, session.value.chantierName, photo.id, text, res.baseName)
           }
         } else {
-          await queueStore.addPhotoToQueue(session.value.id, session.value.chantierName, photo.id, photo.dataUrl)
+          await queueStore.addPhotoToQueue(session.value.id, session.value.chantierName, photo.id, photo.dataUrl, isVideo ? 'video' : 'photo', mediaLabel)
+          await sessionStore.markPhotoFailed(photo.id)
         }
       } catch {
-        await queueStore.addPhotoToQueue(session.value.id, session.value.chantierName, photo.id, photo.dataUrl)
+        await queueStore.addPhotoToQueue(session.value.id, session.value.chantierName, photo.id, photo.dataUrl, isVideo ? 'video' : 'photo', mediaLabel)
+        await sessionStore.markPhotoFailed(photo.id)
       }
     }
 
@@ -760,6 +832,30 @@ async function clore() {
 </script>
 
 <style scoped>
+.nav-galerie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-home-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.nav-home-btn svg { width: 22px; height: 22px; }
+.nav-home-btn:active { opacity: 0.45; transform: scale(0.9); }
+
 .nav-counter {
   font-size: 12px;
   font-weight: 500;
@@ -804,11 +900,33 @@ async function clore() {
 }
 .thumb-wrap.is-selected { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 .thumb-wrap.is-uploaded { opacity: 0.82; }
+.thumb-wrap.is-queued   { opacity: 0.6; }
+.thumb-wrap.is-failed   { opacity: 0.85; }
 
 .thumb-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.thumb-video-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.5);
+}
+.thumb-video-placeholder svg { width: 36px; height: 36px; }
+
+.video-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
 }
 
 /* Badge note */
@@ -823,6 +941,22 @@ async function clore() {
   font-weight: 700;
   padding: 2px 5px;
   line-height: 14px;
+}
+
+/* Badge file d'attente */
+.queued-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(255,159,10,0.85);
+  color: #000;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
 }
 
 /* Badge transférée */
@@ -872,6 +1006,13 @@ async function clore() {
 .sel-check.checked::after {
   background: var(--color-accent);
   border-color: var(--color-accent);
+}
+.sel-check.failed::after {
+  border-color: var(--color-warning);
+}
+.sel-check.failed.checked::after {
+  background: var(--color-warning);
+  border-color: var(--color-warning);
 }
 .sel-check span {
   position: absolute;
@@ -1113,23 +1254,31 @@ async function clore() {
 }
 
 /* ── Viewer ──────────────────────────────────────────────────── */
-.viewer-sheet {
-  width: 100%;
-  background: var(--color-surface);
-  border-radius: 20px 20px 0 0;
-  padding: 0 0 calc(16px + var(--safe-bottom));
+/* Viewer plein écran */
+.viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: var(--color-bg);
   display: flex;
   flex-direction: column;
-  max-height: 92vh;
+}
+
+.viewer-sheet {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
+  padding-bottom: calc(16px + var(--safe-bottom));
 }
 
 .viewer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px 8px;
+  padding: calc(12px + var(--safe-top)) 16px 8px;
   flex-shrink: 0;
+  background: var(--color-bg);
 }
 .viewer-title {
   font-size: 15px;

@@ -59,17 +59,18 @@ export const useSessionStore = defineStore('session', () => {
     return s
   }
 
-  async function addPhoto(dataUrl: string): Promise<Photo> {
+  async function addPhoto(dataUrl: string, mediaType: 'photo' | 'video' = 'photo'): Promise<Photo> {
     if (!currentSession.value) throw new Error('Pas de session active')
 
-    const thumbnail = await generateThumbnail(dataUrl)
+    const thumbnail = mediaType === 'photo' ? await generateThumbnail(dataUrl) : ''
     const photo: Photo = {
       id: generateId(),
       dataUrl,
       thumbnail,
       notes: [],
       createdAt: Date.now(),
-      uploaded: false
+      uploaded: false,
+      mediaType
     }
 
     currentSession.value.photos.push(photo)
@@ -126,6 +127,15 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  async function markPhotoFailed(photoId: string): Promise<void> {
+    if (!currentSession.value) return
+    const photo = currentSession.value.photos.find(p => p.id === photoId)
+    if (photo) {
+      photo.uploadFailed = true
+      await saveSession(currentSession.value)
+    }
+  }
+
   async function setSessionStatus(status: Session['status']): Promise<void> {
     if (!currentSession.value) return
     currentSession.value.status = status
@@ -155,6 +165,7 @@ export const useSessionStore = defineStore('session', () => {
     deleteNoteFromPhoto,
     deletePhoto,
     markPhotoUploaded,
+    markPhotoFailed,
     setSessionStatus,
     removeSession
   }

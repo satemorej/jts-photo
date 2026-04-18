@@ -7,6 +7,7 @@ export interface UploadMeta {
   chantierName: string
   timestamp: number
   photoId?: string
+  mediaLabel?: string  // ex: "photo_1", "video_2"
 }
 
 export interface ApiResponse {
@@ -47,9 +48,26 @@ export async function uploadPhoto(
   fd.append('sessionId', meta.sessionId)
   fd.append('chantierName', meta.chantierName)
   fd.append('timestamp', String(meta.timestamp))
-  if (meta.photoId) fd.append('photoId', meta.photoId)
+  if (meta.photoId)    fd.append('photoId', meta.photoId)
+  if (meta.mediaLabel) fd.append('mediaLabel', meta.mediaLabel)
 
   return postForm('/upload/photo', fd)
+}
+
+export async function uploadVideo(
+  blob: Blob,
+  meta: UploadMeta
+): Promise<ApiResponse> {
+  const ext = blob.type.includes('quicktime') ? 'mov' : (blob.type.split('/')[1] || 'mp4')
+  const filename = `${meta.chantierName}_${meta.timestamp}_${meta.photoId ?? 'video'}.${ext}`
+  const fd = new FormData()
+  fd.append('file', blob, filename)
+  fd.append('sessionId', meta.sessionId)
+  fd.append('chantierName', meta.chantierName)
+  fd.append('timestamp', String(meta.timestamp))
+  if (meta.photoId)    fd.append('photoId', meta.photoId)
+  if (meta.mediaLabel) fd.append('mediaLabel', meta.mediaLabel)
+  return postForm('/upload/video', fd)
 }
 
 export async function uploadThumbnail(

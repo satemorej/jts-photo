@@ -1,5 +1,4 @@
 import path from 'node:path'
-import crypto from 'node:crypto'
 import { writeFile } from '../gateway/gatewayClient.js'
 
 const BASE_DIR = process.env.PHOTOS_DIR ?? '/volume1/photo/photos-jts'
@@ -12,8 +11,7 @@ function buildBaseName(chantierName, timestamp) {
   const date    = new Date(Number(timestamp))
   const dateStr = date.toISOString().slice(0, 10)
   const timeStr = date.toISOString().slice(11, 19).replace(/:/g, '-')
-  const suffix  = crypto.randomBytes(3).toString('hex')
-  return `${sanitize(chantierName)}_${dateStr}_${timeStr}_${suffix}`
+  return `${sanitize(chantierName)}_${dateStr}_${timeStr}`
 }
 
 function rapportDir(chantierName) {
@@ -25,9 +23,10 @@ function pleineResolutionDir(chantierName) {
 }
 
 // Retourne { filename, baseName } — baseName partagé avec thumbnail et note
-export async function storePhoto(fileBuffer, originalName, { chantierName, timestamp }) {
+export async function storePhoto(fileBuffer, originalName, { chantierName, timestamp, mediaLabel }) {
   const ext      = path.extname(originalName) || '.jpg'
-  const baseName = buildBaseName(chantierName, timestamp)
+  const base     = buildBaseName(chantierName, timestamp)
+  const baseName = mediaLabel ? `${base}_${mediaLabel}` : base
   const filename = `${baseName}${ext}`
   const naspath  = `${pleineResolutionDir(chantierName)}/${filename}`
 
@@ -51,6 +50,17 @@ export async function storeNote(fileBuffer, baseName, { chantierName }) {
 
   await writeFile(naspath, fileBuffer.toString('utf8'))
   return filename
+}
+
+export async function storeVideo(fileBuffer, originalName, { chantierName, timestamp, mediaLabel }) {
+  const ext      = path.extname(originalName) || '.mp4'
+  const base     = buildBaseName(chantierName, timestamp)
+  const baseName = mediaLabel ? `${base}_${mediaLabel}` : base
+  const filename = `${baseName}${ext}`
+  const naspath  = `${pleineResolutionDir(chantierName)}/${filename}`
+
+  await writeFile(naspath, fileBuffer.toString('base64'), 'base64')
+  return { filename, baseName }
 }
 
 export async function storeRapport(fileBuffer, { chantierName, timestamp }) {

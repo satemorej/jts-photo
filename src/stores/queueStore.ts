@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getQueue, enqueue, dequeue, updateQueueItem, generateId } from '@/services/db'
-import { uploadPhoto, uploadNote } from '@/services/api'
+import { uploadPhoto, uploadNote, uploadVideo } from '@/services/api'
+import { useSessionStore } from '@/stores/sessionStore'
 import type { QueueItem, HistoryEntry } from '@/services/db'
 
 const MAX_RETRY = 5
@@ -48,11 +49,12 @@ export const useQueueStore = defineStore('queue', () => {
 
   // ── Enqueue ──────────────────────────────────────────────────
   async function addPhotoToQueue(
-    sessionId: string, chantierName: string, photoId: string, dataUrl: string
+    sessionId: string, chantierName: string, photoId: string, dataUrl: string,
+    mediaType: 'photo' | 'video' = 'photo', mediaLabel?: string
   ): Promise<void> {
     const item: QueueItem = {
       id: generateId(), sessionId, chantierName, photoId,
-      dataUrl, type: 'photo', retryCount: 0, lastAttempt: 0, createdAt: Date.now()
+      dataUrl, type: mediaType, mediaLabel, retryCount: 0, lastAttempt: 0, createdAt: Date.now()
     }
     await enqueue(item)
     items.value.push(item)
@@ -77,18 +79,23 @@ export const useQueueStore = defineStore('queue', () => {
 
     const meta = {
       sessionId: item.sessionId, chantierName: item.chantierName,
-      timestamp: item.createdAt, photoId: item.photoId
+      timestamp: item.createdAt, photoId: item.photoId, mediaLabel: item.mediaLabel
     }
     try {
       const blob   = await fetch(item.dataUrl).then(r => r.blob())
       const result = item.type === 'photo'
         ? await uploadPhoto(blob, meta)
+        : item.type === 'video'
+        ? await uploadVideo(blob, meta)
         : await uploadNote(item.noteText ?? '', item.baseName ?? '', meta)
 
       if (result.success) {
         pushHistory(item)
         await dequeue(item.id)
         items.value = items.value.filter(i => i.id !== id)
+        if ((item.type === 'photo' || item.type === 'video') && item.photoId) {
+          await useSessionStore().markPhotoUploaded(item.photoId)
+        }
         return true
       }
       const updated = { ...item, retryCount: item.retryCount + 1, lastAttempt: Date.now(), lastError: result.error ?? 'Échec serveur' }

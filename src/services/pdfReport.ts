@@ -1,13 +1,21 @@
-// Génération rapport PDF via jsPDF
 import { jsPDF } from 'jspdf'
 import type { Session } from './db'
 
-export async function generateSessionReport(session: Session): Promise<void> {
+const IMG_W = 60
+const IMG_H = 45
+const LEFT  = 15
+const INFO_X = 82
+const PAGE_H = 287
+
+async function buildDoc(session: Session): Promise<jsPDF> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()
   let y = 15
 
-  // Header
+  const photoCount = session.photos.filter(p => p.mediaType !== 'video').length
+  const videoCount = session.photos.filter(p => p.mediaType === 'video').length
+
+  // ── En-tête ──────────────────────────────────────────────────
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.text('JTS Agencement — Rapport chantier', W / 2, y, { align: 'center' })
@@ -15,120 +23,87 @@ export async function generateSessionReport(session: Session): Promise<void> {
 
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Chantier : ${session.chantierName}`, 15, y)
-  y += 6
-  doc.text(`Date : ${new Date(session.createdAt).toLocaleDateString('fr-FR')}`, 15, y)
-  y += 6
-  doc.text(`Photos : ${session.photos.length}`, 15, y)
-  y += 10
+  doc.text(`Chantier : ${session.chantierName}`, LEFT, y); y += 6
+  doc.text(`Date : ${new Date(session.createdAt).toLocaleDateString('fr-FR')}`, LEFT, y); y += 6
+
+  const summary = [
+    photoCount ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : '',
+    videoCount ? `${videoCount} vidéo${videoCount > 1 ? 's' : ''}` : ''
+  ].filter(Boolean).join(', ')
+  doc.text(`Médias : ${summary || '0'}`, LEFT, y); y += 10
 
   doc.setDrawColor(200)
-  doc.line(15, y, W - 15, y)
-  y += 8
+  doc.line(LEFT, y, W - LEFT, y); y += 8
 
-  for (let i = 0; i < session.photos.length; i++) {
-    const photo = session.photos[i]
+  // ── Médias ───────────────────────────────────────────────────
+  let photoIdx = 0
+  let videoIdx = 0
 
-    if (y > 250) {
-      doc.addPage()
-      y = 15
+  for (const photo of session.photos) {
+    const isVideo = photo.mediaType === 'video'
+    const rowH = Math.max(IMG_H, 14 + photo.notes.length * 16) + 10
+
+    if (y + rowH > PAGE_H) { doc.addPage(); y = 15 }
+
+    if (isVideo) {
+      // Placeholder vidéo : rectangle gris + texte
+      doc.setFillColor(45, 45, 45)
+      doc.rect(LEFT, y, IMG_W, IMG_H, 'F')
+      doc.setFillColor(80, 80, 80)
+      doc.rect(LEFT + IMG_W / 2 - 12, y + IMG_H / 2 - 8, 24, 16, 'F')
+      // Icône play simplifiée (triangle)
+      doc.setFillColor(200, 200, 200)
+      doc.triangle(
+        LEFT + IMG_W / 2 - 4, y + IMG_H / 2 - 5,
+        LEFT + IMG_W / 2 - 4, y + IMG_H / 2 + 5,
+        LEFT + IMG_W / 2 + 6, y + IMG_H / 2,
+        'F'
+      )
+      videoIdx++
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Vidéo ${videoIdx}`, INFO_X, y + 5)
+    } else {
+      // Thumbnail photo
+      try {
+        const imgProps = doc.getImageProperties(photo.thumbnail)
+        const ratio = Math.min(IMG_W / imgProps.width, IMG_H / imgProps.height)
+        doc.addImage(photo.thumbnail, 'JPEG', LEFT, y, imgProps.width * ratio, imgProps.height * ratio)
+      } catch { /* thumbnail absente — espace vide */ }
+      photoIdx++
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+      doc.text(`Photo ${photoIdx}`, INFO_X, y + 5)
     }
 
-    // Thumbnail
-    try {
-      const imgProps = doc.getImageProperties(photo.thumbnail)
-      const maxW = 60
-      const maxH = 45
-      const ratio = Math.min(maxW / imgProps.width, maxH / imgProps.height)
-      const w = imgProps.width * ratio
-      const h = imgProps.height * ratio
-      doc.addImage(photo.thumbnail, 'JPEG', 15, y, w, h)
-    } catch {
-      // thumbnail may fail — continue
-    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+    doc.text(new Date(photo.createdAt).toLocaleString('fr-FR'), INFO_X, y + 10)
 
-    // Info
-    const infoX = 80
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
-    doc.text(`Photo ${i + 1}`, infoX, y + 4)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.text(new Date(photo.createdAt).toLocaleString('fr-FR'), infoX, y + 9)
-
-    let ny = y + 14
+    let ny = y + 15
     if (photo.notes.length > 0) {
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Notes :', infoX, ny)
-      ny += 4
+      doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+      doc.text('Notes :', INFO_X, ny); ny += 4
       doc.setFont('helvetica', 'normal')
       for (const note of photo.notes) {
-        const lines = doc.splitTextToSize(`• ${note.text}`, W - infoX - 15)
-        doc.text(lines, infoX, ny)
-        ny += lines.length * 4
+        const lines = doc.splitTextToSize(`• ${note.text}`, W - INFO_X - LEFT)
+        doc.text(lines, INFO_X, ny)
+        ny += lines.length * 4 + 1
       }
     }
 
-    y = Math.max(y + 50, ny) + 6
-    doc.setDrawColor(230)
-    doc.line(15, y, W - 15, y)
-    y += 6
+    y = Math.max(y + IMG_H + 4, ny) + 4
+    doc.setDrawColor(230); doc.line(LEFT, y, W - LEFT, y); y += 6
   }
 
+  return doc
+}
+
+export async function generateSessionReport(session: Session): Promise<void> {
+  const doc = await buildDoc(session)
   const filename = `rapport_${session.chantierName}_${new Date(session.createdAt).toISOString().slice(0, 10)}.pdf`
   doc.save(filename)
 }
 
 export async function generateSessionReportBlob(session: Session): Promise<Blob> {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = doc.internal.pageSize.getWidth()
-  let y = 15
-
-  doc.setFontSize(18)
-  doc.setFont('helvetica', 'bold')
-  doc.text('JTS Agencement — Rapport chantier', W / 2, y, { align: 'center' })
-  y += 8
-
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Chantier : ${session.chantierName}`, 15, y); y += 6
-  doc.text(`Date : ${new Date(session.createdAt).toLocaleDateString('fr-FR')}`, 15, y); y += 6
-  doc.text(`Photos : ${session.photos.length}`, 15, y); y += 10
-
-  doc.setDrawColor(200)
-  doc.line(15, y, W - 15, y); y += 8
-
-  for (let i = 0; i < session.photos.length; i++) {
-    const photo = session.photos[i]
-    if (y > 250) { doc.addPage(); y = 15 }
-
-    try {
-      const imgProps = doc.getImageProperties(photo.thumbnail)
-      const maxW = 60, maxH = 45
-      const ratio = Math.min(maxW / imgProps.width, maxH / imgProps.height)
-      doc.addImage(photo.thumbnail, 'JPEG', 15, y, imgProps.width * ratio, imgProps.height * ratio)
-    } catch { /* continue */ }
-
-    const infoX = 80
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold')
-    doc.text(`Photo ${i + 1}`, infoX, y + 4)
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
-    doc.text(new Date(photo.createdAt).toLocaleString('fr-FR'), infoX, y + 9)
-
-    let ny = y + 14
-    if (photo.notes.length > 0) {
-      doc.setFontSize(9); doc.setFont('helvetica', 'bold')
-      doc.text('Notes :', infoX, ny); ny += 4
-      doc.setFont('helvetica', 'normal')
-      for (const note of photo.notes) {
-        const lines = doc.splitTextToSize(`• ${note.text}`, W - infoX - 15)
-        doc.text(lines, infoX, ny); ny += lines.length * 4
-      }
-    }
-    y = Math.max(y + 50, ny) + 6
-    doc.setDrawColor(230); doc.line(15, y, W - 15, y); y += 6
-  }
-
+  const doc = await buildDoc(session)
   return doc.output('blob')
 }

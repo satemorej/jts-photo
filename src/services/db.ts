@@ -13,6 +13,8 @@ export interface Photo {
   notes: PhotoNote[]
   createdAt: number
   uploaded: boolean
+  uploadFailed?: boolean
+  mediaType?: 'photo' | 'video'
 }
 
 export interface Session {
@@ -30,9 +32,10 @@ export interface QueueItem {
   chantierName: string
   photoId?: string
   dataUrl: string  // dataUrl photo ou texte encodé pour note
-  type: 'photo' | 'note'
+  type: 'photo' | 'note' | 'video'
   noteText?: string
-  baseName?: string  // nom de base partagé photo/thumb/note
+  baseName?: string   // nom de base partagé photo/thumb/note
+  mediaLabel?: string // ex: "photo_1", "video_2"
   retryCount: number
   lastAttempt: number
   lastError?: string
@@ -41,7 +44,7 @@ export interface QueueItem {
 
 export interface HistoryEntry {
   id: string
-  type: 'photo' | 'note' | 'report'
+  type: 'photo' | 'note' | 'report' | 'video'
   chantierName: string
   filename: string
   transferredAt: number

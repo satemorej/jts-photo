@@ -1,10 +1,6 @@
 <template>
   <div class="screen">
-    <nav class="screen-nav">
-      <h2>Réseau &amp; Transfert</h2>
-    </nav>
-
-    <main class="screen-body">
+<main class="screen-body">
 
       <!-- ── Connexion NAS ───────────────────────────────────── -->
       <section class="section-block">
@@ -38,6 +34,8 @@
             {{ queueStore.pendingCount }} fichier{{ queueStore.pendingCount !== 1 ? 's' : '' }}
           </span>
         </div>
+
+        <div class="queue-section" :class="queueStore.pendingCount ? 'queue-active' : 'queue-empty'">
 
         <!-- Contrôles -->
         <div class="queue-controls">
@@ -75,6 +73,12 @@
             <!-- Aperçu -->
             <div class="item-preview">
               <img v-if="item.type === 'photo'" :src="item.dataUrl" class="item-thumb" alt="" />
+              <div v-else-if="item.type === 'video'" class="item-icon-box item-video">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+                </svg>
+                <span>VID</span>
+              </div>
               <div v-else class="item-icon-box item-note">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -89,8 +93,8 @@
             <!-- Infos -->
             <div class="item-body">
               <div class="item-top">
-                <span class="item-type-badge" :class="item.type === 'photo' ? 'badge-photo' : 'badge-note'">
-                  {{ item.type === 'photo' ? 'Photo' : 'Note' }}
+                <span class="item-type-badge" :class="item.type === 'photo' ? 'badge-photo' : item.type === 'video' ? 'badge-video' : 'badge-note'">
+                  {{ item.type === 'photo' ? 'Photo' : item.type === 'video' ? 'Vidéo' : 'Note' }}
                 </span>
                 <span class="item-chantier">{{ item.chantierName }}</span>
               </div>
@@ -119,6 +123,8 @@
             </div>
           </div>
         </div>
+
+        </div><!-- /queue-section -->
       </section>
 
       <!-- ── Historique ─────────────────────────────────────── -->
@@ -135,10 +141,13 @@
 
         <div v-else class="history-list">
           <div v-for="entry in history" :key="entry.id" class="history-row">
-            <div class="h-icon" :class="entry.type === 'photo' ? 'h-photo' : entry.type === 'report' ? 'h-report' : 'h-note'">
+            <div class="h-icon" :class="entry.type === 'photo' ? 'h-photo' : entry.type === 'video' ? 'h-video' : entry.type === 'report' ? 'h-report' : 'h-note'">
               <svg v-if="entry.type === 'photo'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                 <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <svg v-else-if="entry.type === 'video'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
               </svg>
               <svg v-else-if="entry.type === 'report'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -166,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQueueStore, getTransferHistory, clearTransferHistory } from '@/stores/queueStore'
 import { useUiStore } from '@/stores/uiStore'
 import { checkHealthLatency } from '@/services/api'
@@ -178,12 +187,16 @@ const queueStore = useQueueStore()
 const uiStore    = useUiStore()
 
 // ── Connexion ─────────────────────────────────────────────────
-const testing    = ref(false)
-const latencyMs  = ref<number | null>(null)
+const testing     = ref(false)
+const latencyMs   = ref<number | null>(null)
 const lastChecked = ref<string | null>(null)
 
-const statusClass = ref<'conn-online' | 'conn-warn' | 'conn-err'>('conn-online')
-const statusText  = ref('En ligne')
+const statusClass = computed(() =>
+  !uiStore.isOnline ? 'conn-err' : !uiStore.backendOk ? 'conn-warn' : 'conn-online'
+)
+const statusText = computed(() =>
+  !uiStore.isOnline ? 'Hors ligne' : !uiStore.backendOk ? 'NAS inaccessible' : 'En ligne'
+)
 
 const latencyClass = ref<'lat-ok' | 'lat-warn' | 'lat-bad'>('lat-ok')
 
@@ -192,20 +205,9 @@ async function testConnection() {
   const { ok, latencyMs: ms } = await checkHealthLatency()
   testing.value = false
 
-  latencyMs.value  = ms
+  latencyMs.value   = ms
   lastChecked.value = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   uiStore.backendOk = ok
-
-  if (!uiStore.isOnline) {
-    statusClass.value = 'conn-err'
-    statusText.value  = 'Hors ligne'
-  } else if (!ok) {
-    statusClass.value = 'conn-warn'
-    statusText.value  = 'NAS inaccessible'
-  } else {
-    statusClass.value = 'conn-online'
-    statusText.value  = 'En ligne'
-  }
 
   if (ms === null) latencyClass.value = 'lat-bad'
   else if (ms < 200) latencyClass.value = 'lat-ok'
@@ -256,12 +258,6 @@ function formatDateTime(ts: number) {
 onMounted(async () => {
   await queueStore.loadQueue()
   refreshHistory()
-  // Afficher l'état actuel sans faire de test complet
-  if (!uiStore.isOnline) {
-    statusClass.value = 'conn-err'; statusText.value = 'Hors ligne'
-  } else if (!uiStore.backendOk) {
-    statusClass.value = 'conn-warn'; statusText.value = 'NAS inaccessible'
-  }
 })
 </script>
 
@@ -269,6 +265,21 @@ onMounted(async () => {
 /* Sections */
 .section-block {
   margin-bottom: 24px;
+}
+
+.queue-section {
+  border-radius: var(--radius-md);
+  padding: 14px;
+  border: 1px solid transparent;
+  transition: border-color 0.2s, background 0.2s;
+}
+.queue-empty {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+.queue-active {
+  border-color: rgba(255, 159, 10, 0.55);
+  background: rgba(255, 159, 10, 0.06);
 }
 
 .section-header {
@@ -301,7 +312,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 9px 14px;
   border-radius: var(--radius-lg);
   border: 1px solid transparent;
   cursor: pointer;
@@ -422,7 +433,8 @@ onMounted(async () => {
   letter-spacing: 0.05em;
 }
 .item-icon-box svg { width: 22px; height: 22px; }
-.item-note { background: rgba(255,214,10,0.12); color: var(--color-warning); }
+.item-note  { background: rgba(255,214,10,0.12); color: var(--color-warning); }
+.item-video { background: rgba(191,90,242,0.12); color: #bf5af2; }
 
 .item-body { flex: 1; min-width: 0; }
 
@@ -442,8 +454,9 @@ onMounted(async () => {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.badge-photo { background: rgba(10,132,255,0.15); color: var(--color-accent); }
-.badge-note  { background: rgba(255,214,10,0.15); color: var(--color-warning); }
+.badge-photo { background: rgba(10,132,255,0.15);  color: var(--color-accent); }
+.badge-note  { background: rgba(255,214,10,0.15);  color: var(--color-warning); }
+.badge-video { background: rgba(191,90,242,0.15);  color: #bf5af2; }
 
 .item-chantier {
   font-size: 13px;
@@ -513,9 +526,10 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 .h-icon svg { width: 18px; height: 18px; }
-.h-photo  { background: rgba(10,132,255,0.12); color: var(--color-accent); }
+.h-photo  { background: rgba(10,132,255,0.12);  color: var(--color-accent); }
 .h-note   { background: rgba(255,214,10,0.12);  color: var(--color-warning); }
 .h-report { background: rgba(255,69,58,0.12);   color: var(--color-danger); }
+.h-video  { background: rgba(191,90,242,0.12);  color: #bf5af2; }
 
 .h-body {
   flex: 1;
@@ -556,6 +570,14 @@ onMounted(async () => {
   text-align: center;
 }
 .empty-icon { font-size: 32px; }
+
+.queue-section .empty-state {
+  flex-direction: row;
+  gap: 8px;
+  padding: 10px 14px;
+}
+.queue-section .empty-icon { font-size: 18px; }
+
 
 .link-btn {
   background: none;

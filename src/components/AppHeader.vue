@@ -7,23 +7,32 @@
       <span class="app-name">JTS Photo</span>
       <span class="app-meta">v{{ version }} · build {{ buildN }}</span>
     </div>
-    <div class="app-status" :class="statusClass" @click="router.push('/reseau')">
+    <div v-if="!isReseauScreen" class="app-status" :class="statusClass" @click="router.push('/reseau')">
       <span class="status-dot" />
       <div class="status-text-group">
         <span class="status-label">{{ statusText }}</span>
         <span v-if="pendingCount > 0" class="status-pending">{{ pendingCount }} att.</span>
       </div>
     </div>
+    <button v-else class="header-home-btn" @click="router.push('/')" title="Accueil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUiStore } from '@/stores/uiStore'
 import { useQueueStore } from '@/stores/queueStore'
 
 const router = useRouter()
+const route  = useRoute()
+
+const isReseauScreen = computed(() => route.name === 'reseau')
 
 const version    = __APP_VERSION__
 const buildN     = __BUILD_N__
@@ -154,4 +163,23 @@ const statusText = computed(() => {
   opacity: 0.8;
   white-space: nowrap;
 }
+
+.header-home-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 6px;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 0.12s ease, transform 0.1s ease;
+}
+.header-home-btn svg { width: 22px; height: 22px; }
+.header-home-btn:active { opacity: 0.45; transform: scale(0.9); }
 </style>

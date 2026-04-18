@@ -17,16 +17,12 @@
           class="session-card"
           @click="router.push(`/galerie/${session.id}`)"
         >
-          <div class="session-main">
-            <p class="session-name">{{ session.chantierName }}</p>
-            <p class="session-meta">
-              {{ formatDate(session.createdAt) }}
-              <span class="count-sep">·</span>
-              <span>📱 {{ session.photos.length }}</span>
-              <span class="count-sep">·</span>
-              <span class="count-sent">✓ {{ session.photos.filter(p => p.uploaded).length }}</span>
-            </p>
-          </div>
+          <p class="session-name">{{ session.chantierName }} <span class="session-date">{{ formatDate(session.createdAt) }}</span></p>
+          <span class="session-counter">
+            {{ session.photos.filter(p => p.uploaded).length }}T
+            / {{ session.photos.length }}P
+            <template v-if="queueStore.pendingCount"> / {{ queueStore.pendingCount }}F</template>
+          </span>
           <span class="session-chevron">›</span>
         </div>
       </div>
@@ -75,6 +71,10 @@ onMounted(async () => {
   await Promise.all([sessionStore.loadSessions(), queueStore.loadQueue()])
 })
 
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 async function create() {
   if (!chantierName.value.trim() || creating.value) return
   creating.value = true
@@ -87,11 +87,6 @@ async function create() {
   }
 }
 
-function formatDate(ts: number) {
-  return new Date(ts).toLocaleDateString('fr-FR', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
-  })
-}
 </script>
 
 <style scoped>
@@ -104,50 +99,53 @@ function formatDate(ts: number) {
 .session-card {
   display: flex;
   align-items: center;
+  gap: 8px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 14px 12px 14px 16px;
+  border-radius: var(--radius-md);
+  padding: 10px 10px 10px 14px;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
   transition: opacity 0.12s ease, transform 0.1s ease;
+  min-height: 44px;
 }
 .session-card:active {
   opacity: 0.7;
   transform: scale(0.985);
 }
 
-.session-main { flex: 1; min-width: 0; }
-
 .session-name {
-  font-size: 16px;
+  flex: 1;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+.session-date {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-dim);
+  margin-left: 4px;
 }
 
-.session-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
+.session-counter {
+  flex-shrink: 0;
   font-size: 12px;
+  font-weight: 500;
   color: var(--color-text-dim);
-  margin-top: 4px;
+  white-space: nowrap;
 }
-.count-sep { opacity: 0.35; }
-.count-sent { color: var(--color-success); font-weight: 600; }
 
 .session-chevron {
   flex-shrink: 0;
-  font-size: 20px;
+  font-size: 18px;
   color: var(--color-text-dim);
-  opacity: 0.4;
-  margin-left: 6px;
+  opacity: 0.35;
   line-height: 1;
 }
 
