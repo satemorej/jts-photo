@@ -13,9 +13,9 @@
   --color-surface-2: #1c1c1e;
   --color-border:    #2c2c2e;
 
-  /* Palette iOS system colors — cohérence iPhone */
-  --color-accent:     #ff9f0a;
-  --color-accent-dim: #7a4c00;
+  /* Palette — dev (bleu) par défaut, prod (orange) via data-env */
+  --color-accent:     #0a84ff;
+  --color-accent-dim: #0a3d8f;
   --color-danger:     #ff453a;
   --color-success:    #30d158;
   --color-warning:    #ffd60a;
@@ -144,8 +144,17 @@ html, body {
 }
 
 .btn-primary {
-  background: linear-gradient(160deg, #ffb833 0%, #e67e00 100%);
+  background: linear-gradient(160deg, #3a9eff 0%, #0060df 100%);
   color: #fff;
+}
+
+[data-env="prod"] .btn-primary {
+  background: linear-gradient(160deg, #ffb833 0%, #e67e00 100%);
+}
+
+[data-env="prod"] {
+  --color-accent:     #ff9f0a;
+  --color-accent-dim: #7a4c00;
 }
 
 .btn-secondary {

@@ -43,7 +43,7 @@ echo ""
 
 # ── 1. Build frontend ─────────────────────────────────────────
 echo "▶ Build frontend…"
-VITE_API_URL="" npm run build --silent
+VITE_API_URL="" VITE_APP_ENV="${ENV}" npm run build --silent
 echo "  ✓ Build OK ($(du -sh dist | cut -f1))"
 
 # ── 2. Sync frontend build ────────────────────────────────────

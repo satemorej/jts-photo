@@ -72,17 +72,22 @@ const statusText = computed(() => {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  background: linear-gradient(145deg, #ffb833, #e67e00);
+  background: linear-gradient(145deg, #3a9eff, #0060df);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(255, 159, 10, 0.35);
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.35);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
   transition: opacity 0.12s ease, transform 0.1s ease;
+}
+
+:global([data-env="prod"]) .app-logo {
+  background: linear-gradient(145deg, #ffb833, #e67e00);
+  box-shadow: 0 2px 8px rgba(255, 159, 10, 0.35);
 }
 .app-logo:active {
   opacity: 0.7;

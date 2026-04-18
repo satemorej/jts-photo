@@ -7,8 +7,19 @@ function getClient() {
   if (!url || !key) throw new Error('GATEWAY_URL et GATEWAY_API_KEY sont requis')
   return axios.create({
     baseURL: url,
-    headers: { 'X-API-Key': key }
+    headers: { 'X-API-Key': key },
+    timeout: 15000
   })
+}
+
+export async function pingGateway() {
+  try {
+    const client = getClient()
+    const res = await client.get('/api/v1/health')
+    return res.status === 200
+  } catch {
+    return false
+  }
 }
 
 function unwrap(response) {

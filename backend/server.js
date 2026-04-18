@@ -7,6 +7,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import uploadRouter from './routes/upload.js'
+import { pingGateway } from './gateway/gatewayClient.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -38,9 +39,14 @@ app.use((_req, res, next) => {
 
 app.use(express.json({ limit: '1mb' }))
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', ts: Date.now(), env: process.env.APP_ENV ?? 'unknown' })
+// Health check — teste aussi le gateway
+app.get('/api/health', async (_req, res) => {
+  const gatewayOk = await pingGateway()
+  if (gatewayOk) {
+    res.json({ status: 'ok', ts: Date.now(), env: process.env.APP_ENV ?? 'unknown' })
+  } else {
+    res.status(503).json({ status: 'gateway_unreachable', ts: Date.now(), env: process.env.APP_ENV ?? 'unknown' })
+  }
 })
 
 // Upload routes
