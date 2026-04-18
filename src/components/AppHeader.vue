@@ -5,7 +5,7 @@
     </div>
     <div class="app-info">
       <span class="app-name">JTS Photo</span>
-      <span class="app-meta">v{{ version }} · build {{ buildN }}</span>
+      <span class="app-meta">{{ version }}<template v-if="!isProd"> · build {{ buildN }}</template></span>
     </div>
     <div v-if="!isReseauScreen" class="app-status" :class="statusClass" @click="router.push('/reseau')">
       <span class="status-dot" />
@@ -34,7 +34,8 @@ const route  = useRoute()
 
 const isReseauScreen = computed(() => route.name === 'reseau')
 
-const version    = __APP_VERSION__
+const isProd     = __APP_ENV__ === 'prod'
+const version    = 'v' + __APP_VERSION__.replace(/^v/, '')
 const buildN     = __BUILD_N__
 const uiStore    = useUiStore()
 const queueStore = useQueueStore()

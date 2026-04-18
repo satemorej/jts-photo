@@ -10,10 +10,12 @@ function git(cmd: string): string {
 }
 
 const isProd     = process.env.VITE_APP_ENV === 'prod'
-const buildN     = Number(git('git rev-list --count HEAD')) || 0
+const commitCount = Number(git('git rev-list --count HEAD')) || 0
+const isDirty    = git('git status --porcelain') !== ''
+const buildN     = commitCount
 const appVersion = isProd
   ? (git('git describe --tags --exact-match') || git('git describe --tags --abbrev=4') || git('git rev-parse --short HEAD'))
-  : `dev-${buildN}`
+  : `dev-${commitCount}${isDirty ? '*' : ''}`
 
 export default defineConfig({
   define: {

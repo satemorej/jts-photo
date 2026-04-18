@@ -62,7 +62,11 @@ export const useSessionStore = defineStore('session', () => {
   async function addPhoto(dataUrl: string, mediaType: 'photo' | 'video' = 'photo'): Promise<Photo> {
     if (!currentSession.value) throw new Error('Pas de session active')
 
-    const thumbnail = mediaType === 'photo' ? await generateThumbnail(dataUrl) : ''
+    const [thumbnail, coords] = await Promise.all([
+      mediaType === 'photo' ? generateThumbnail(dataUrl) : Promise.resolve(''),
+      captureCoords()
+    ])
+
     const photo: Photo = {
       id: generateId(),
       dataUrl,
@@ -70,12 +74,42 @@ export const useSessionStore = defineStore('session', () => {
       notes: [],
       createdAt: Date.now(),
       uploaded: false,
-      mediaType
+      mediaType,
+      ...(coords ? { coords } : {})
     }
 
     currentSession.value.photos.push(photo)
+    updateSessionLocation(currentSession.value)
     await saveSession(currentSession.value)
     return photo
+  }
+
+  function captureCoords(): Promise<{ lat: number; lng: number } | null> {
+    return new Promise(resolve => {
+      if (!navigator.geolocation) return resolve(null)
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        ()  => resolve(null),
+        { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true }
+      )
+    })
+  }
+
+  function median(values: number[]): number {
+    const sorted = [...values].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+  }
+
+  function updateSessionLocation(session: Session): void {
+    if (session.location?.address) return  // déjà résolu, on ne recalcule pas
+    const withCoords = session.photos
+      .filter(p => p.coords)
+      .slice(0, 3)
+    if (withCoords.length === 0) return
+    const lat = median(withCoords.map(p => p.coords!.lat))
+    const lng = median(withCoords.map(p => p.coords!.lng))
+    session.location = { ...session.location, lat, lng }
   }
 
   async function addNoteToPhoto(photoId: string, text: string): Promise<void> {

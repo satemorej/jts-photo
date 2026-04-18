@@ -15,6 +15,13 @@ export interface Photo {
   uploaded: boolean
   uploadFailed?: boolean
   mediaType?: 'photo' | 'video'
+  coords?: { lat: number; lng: number }
+}
+
+export interface SessionLocation {
+  lat: number
+  lng: number
+  address?: string
 }
 
 export interface Session {
@@ -24,6 +31,7 @@ export interface Session {
   photos: Photo[]
   status: 'active' | 'uploading' | 'done'
   createdAt: number
+  location?: SessionLocation
 }
 
 export interface QueueItem {

@@ -1,11 +1,33 @@
 import { jsPDF } from 'jspdf'
-import type { Session } from './db'
+import type { Session, SessionLocation } from './db'
+import { saveSession } from './db'
 
 const IMG_W = 60
 const IMG_H = 45
 const LEFT  = 15
 const INFO_X = 82
 const PAGE_H = 287
+
+async function resolveAddress(location: SessionLocation): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${location.lat}&lon=${location.lng}&format=json`,
+      { headers: { 'Accept-Language': 'fr', 'User-Agent': 'JTSPhoto/1.0' } }
+    )
+    if (!res.ok) return null
+    const { address: a } = await res.json()
+    if (!a) return null
+
+    const line1 = [a.house_number, a.road ?? a.hamlet ?? a.neighbourhood ?? a.suburb].filter(Boolean).join(' ')
+    const city  = a.city ?? a.town ?? a.village ?? a.municipality ?? a.county ?? ''
+    const line2 = [a.postcode, city.toUpperCase()].filter(Boolean).join(' ')
+    const line3 = a.country ?? ''
+
+    return [line1, line2, line3].filter(Boolean).join('\n')
+  } catch {
+    return null
+  }
+}
 
 async function buildDoc(session: Session): Promise<jsPDF> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -21,10 +43,30 @@ async function buildDoc(session: Session): Promise<jsPDF> {
   doc.text('JTS Agencement — Rapport chantier', W / 2, y, { align: 'center' })
   y += 8
 
+  // Reverse geocoding si coords présentes mais adresse manquante
+  if (session.location && !session.location.address) {
+    const address = await resolveAddress(session.location)
+    if (address) {
+      session.location.address = address
+      saveSession(session).catch(() => {})
+    }
+  }
+
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
   doc.text(`Chantier : ${session.chantierName}`, LEFT, y); y += 6
   doc.text(`Date : ${new Date(session.createdAt).toLocaleDateString('fr-FR')}`, LEFT, y); y += 6
+
+  if (session.location) {
+    const { lat, lng, address } = session.location
+    const coordStr = `GPS : ${lat.toFixed(5)}, ${lng.toFixed(5)}`
+    doc.text(coordStr, LEFT, y); y += 6
+    if (address) {
+      const addrLines = address.split('\n')
+      doc.text(addrLines, LEFT, y)
+      y += addrLines.length * 5
+    }
+  }
 
   const summary = [
     photoCount ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : '',
